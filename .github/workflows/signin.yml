@@ -21,8 +21,7 @@ jobs:
         run: pip install requests
 
       - name: Run Signin
+        run: python ./signin.py  # 确保路径正确，直接从仓库根目录运行
         env:
           NETEASE_EMAIL: ${{ secrets.NETEASE_EMAIL }}
           NETEASE_PASSWORD: ${{ secrets.NETEASE_PASSWORD }}
-        run: python ./signin.py
-
