@@ -1,57 +1,66 @@
+import os
 import requests
-import schedule
-import time
 
-# ====== 配置区 ======
-EMAIL = "你的网易云邮箱"
-PASSWORD = "你的密码"
+API_URLS = [
+    "https://neteasecloudmusicapi.vercel.app",
+    # 你可以在这里加更多备用 API 地址
+]
 
-API_URL = "https://neteasecloudmusicapi.vercel.app"  # 别人部署好的API
+EMAIL = os.environ.get("NETEASE_EMAIL")
+PASSWORD = os.environ.get("NETEASE_PASSWORD")
+
+# 检查环境变量
+if not EMAIL or not PASSWORD:
+    print("Error: Missing EMAIL or PASSWORD in environment variables.")
+    exit(1)
+
 session = requests.Session()
 
+def call_api(path, method="GET", **kwargs):
+    """依次尝试多个API地址，哪个通就用哪个"""
+    for base in API_URLS:
+        url = f"{base}{path}"
+        try:
+            print(f"Trying URL: {url}")  # 打印正在使用的 URL
+            if method == "GET":
+                r = session.get(url, timeout=15, **kwargs)
+            else:
+                r = session.post(url, timeout=15, **kwargs)
+            return r, base
+        except Exception as e:
+            print(f"API request failed: {e}")
+            continue
+    print("Error: All API endpoints failed.")
+    raise RuntimeError("All API addresses are down.")
 
 def login():
-    """邮箱登录"""
-    url = f"{API_URL}/login"
-    params = {
-        "email": EMAIL,
-        "password": PASSWORD
-    }
-    resp = session.get(url, params=params)
-    data = resp.json()
-    if data.get("code") == 200:
-        print("登录成功:", data.get("profile", {}).get("nickname", ""))
-    else:
-        print("登录失败:", data)
-        raise Exception("Login failed")
-
+    try:
+        r, base = call_api("/login", params={"email": EMAIL, "password": PASSWORD})
+        data = r.json()
+        if data.get("code") == 200:
+            print(f"[login] Success (API: {base}) User: {data['profile']['nickname']}")
+        else:
+            print(f"[login] Failed: {data}")
+            exit(1)
+    except Exception as e:
+        print(f"[login] Error: {e}")
+        exit(1)
 
 def sign_in():
-    """每日签到"""
-    url = f"{API_URL}/daily_signin"
-    resp = session.post(url, params={"type": 0})  # 0=安卓端签到，1=PC端签到
-    data = resp.json()
-    if data.get("code") == 200:
-        print("签到成功:", data.get("point", "获得积分"))
-    elif data.get("code") == -2:
-        print("今天已经签到过了")
-    else:
-        print("签到失败:", data)
-
-
-def job():
     try:
-        login()
-        sign_in()
+        for t in [0, 1]:  # 0=安卓端，1=PC端
+            r, _ = call_api("/daily_signin", method="POST", params={"type": t})
+            data = r.json()
+            if data.get("code") == 200:
+                print(f"[signin] Success type={t} -> +{data.get('point','')}")
+            elif data.get("code") == -2:
+                print(f"[signin] Already signed in today (type={t})")
+            else:
+                print(f"[signin] Failed type={t}: {data}")
     except Exception as e:
-        print("执行任务失败:", e)
-
+        print(f"[signin] Error: {e}")
+        exit(1)
 
 if __name__ == "__main__":
-    # 每天早上 8 点执行一次
-    schedule.every().day.at("08:00").do(job)
-
-    print("自动签到程序已启动...")
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
+    login()
+    sign_in()
