@@ -24,4 +24,5 @@ jobs:
         env:
           NETEASE_EMAIL: ${{ secrets.NETEASE_EMAIL }}
           NETEASE_PASSWORD: ${{ secrets.NETEASE_PASSWORD }}
-        run: python signin.py
+        run: python ./signin.py
+
