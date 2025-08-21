@@ -20,6 +20,9 @@ jobs:
       - name: Install deps
         run: pip install requests
 
+      - name: Print working directory (debugging step)
+        run: pwd
+
       - name: Run Signin
         run: python ./signin.py  # 确保路径正确，直接从仓库根目录运行
         env:
